@@ -1,14 +1,12 @@
 import tkinter as tk
-from objects.Room import Room
 from math import *
 from random import *
 from tools import check_entities_collision
 
+from objects.Room import Room
 from objects.Wall import Wall
 from objects.Healthpack import Healthpack
-from objects.Attack import Attack
 
-from entities.Bullet import Bullet
 from entities.Player import Player
 from entities.Enemy import Enemy
 
