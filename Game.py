@@ -15,7 +15,7 @@ from entities.Enemy import Enemy
 from entities.enemies.Bat import Bat
 from entities.enemies.Tryclop import Tryclop
 
-#from PIL import Image, ImageTk, ImageFilter
+from PIL import Image, ImageTk, ImageFilter
 
 
 class Game:
@@ -152,9 +152,12 @@ class Game:
                 else:
                     self.player.health -= 1
                     self.canvas_int.itemconfig(self.health_bar, text= f"Здоровье: {self.player.health}")
-            if check_entities_collision(self.canvas, enemy.rect, self.room.attacks):
-                self.room.enemies.remove(enemy)
-                self.canvas.delete(enemy.rect)
+            if check_entities_collision(self.canvas, enemy.rect, self.room.attacks) and not enemy.health_cooldown:
+                enemy.health -= 50
+                enemy.health_cooldown += 1
+                if enemy.health <= 0:
+                    self.room.enemies.remove(enemy)
+                    self.canvas.delete(enemy.rect)
         
 
     def player_update(self):

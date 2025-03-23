@@ -12,10 +12,12 @@ class Enemy:
         self.room = room
         self.v = 0
         self.ang = 0
+        self.health = 100
+        self.health_cooldown = 0
         self.targeted = False
         self.calm = True
         self.is_shooting = True
-        self.cooldown = 0
+        self.shoot_cooldown = 0
 
     def move(self):
         dx = self.v * cos(self.ang)
@@ -62,6 +64,10 @@ class Enemy:
             self.calm = False
         player_coords = self.canvas.coords(player.rect)
         enemy_coords = self.canvas.coords(self.rect)
+        if self.health_cooldown:
+            self.health_cooldown += 1
+            if self.health_cooldown >= 6:
+                self.health_cooldown = 0
         if self.targeted: 
             self.ang = objects_angel(enemy_coords, player_coords)
             if objects_distance(player_coords, enemy_coords) >= 100:
@@ -71,10 +77,10 @@ class Enemy:
                 self.room.bullets.append(Bullet(self.canvas, self.room, (enemy_coords[0] + enemy_coords[2]) / 2, (enemy_coords[1] + enemy_coords[3]) / 2, v = 6, ang = objects_angel(enemy_coords, player_coords) + random()*(1/10)-1/20))
                 self.is_shooting = False
             else:
-                self.cooldown += 1
-                if self.cooldown >= 30:
+                self.shoot_cooldown += 1
+                if self.shoot_cooldown >= 30:
                     self.is_shooting = True
-                    self.cooldown = 0
+                    self.shoot_cooldown = 0
         else:
             count = 0
             if objects_distance(player_coords, enemy_coords) <= 100:

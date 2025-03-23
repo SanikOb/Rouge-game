@@ -43,6 +43,10 @@ class Bat(Enemy):
             self.calm = False
         player_coords = self.canvas.coords(player.rect)
         enemy_coords = self.canvas.coords(self.rect)
+        if self.health_cooldown:
+            self.health_cooldown += 1
+            if self.health_cooldown >= 6:
+                self.health_cooldown = 0
         if self.targeted: 
             self.ang = objects_angel(enemy_coords, player_coords)
             if objects_distance(player_coords, enemy_coords) >= 200:
