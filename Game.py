@@ -1,17 +1,12 @@
 import tkinter as tk
-from math import *
-from random import *
-from tools import check_entities_collision
+from random import randint, choice
+from checkers import *
 
-from objects.Room import Room
-from objects.Wall import Wall
-from objects.Healthpack import Healthpack
+from GUI.Minimap import Minimap
 
 from entities.Player import Player
-from entities.Enemy import Enemy
 
-from entities.enemies.Bat import Bat
-from entities.enemies.Tryclop import Tryclop
+from rooms.room_list import room_list
 
 from PIL import Image, ImageTk, ImageFilter
 
@@ -19,76 +14,37 @@ from PIL import Image, ImageTk, ImageFilter
 class Game:
     def __init__(self, root):
         self.root = root
-        self.canvas_int = tk.Canvas(root, width = 600, height = 150, bg = "grey")
-        self.canvas_int.pack()
-        self.canvas = tk.Canvas(root, width = 600, height = 600, bg = "black")
+        self.frame = tk.Frame(root, width=600, height=150)
+        self.canvas_int = tk.Canvas(self.frame, width=450, height=150, bg="grey")
+        self.canvas_map = Minimap(self.frame, 8)
+        self.canvas = tk.Canvas(root, width=600, height=600, bg="black")
+        self.canvas_int.pack(side="right")
+        self.frame.pack()
         self.canvas.pack()
 
-        self.room_list = [
-            Room([-1,-1,1,1],
-            [
-                Wall(self.canvas, 0, 0, 600, 50),
-                Wall(self.canvas, 0, 0, 50, 275),
-                Wall(self.canvas, 0, 325, 50, 600),
-                Wall(self.canvas, 0, 550, 600, 600),
-                Wall(self.canvas, 550, 0, 600, 275),
-                Wall(self.canvas, 550, 325, 600, 600),
-
-                Wall(self.canvas, 100, 100, 200, 350),
-                Wall(self.canvas, 200, 100, 350, 250),
-                Wall(self.canvas, 250, 300, 350, 400),
-                Wall(self.canvas, 400, 50, 500, 350),
-                Wall(self.canvas, 100, 400, 500, 500),
-                Wall(self.canvas, 50, 400, 100, 450),
-
-                Wall(self.canvas, -50, 275, 0, 325),
-                Wall(self.canvas, 600, 275, 650, 325)
-            ],
-            [
-                Healthpack(self.canvas, 520, 300)
-            ]),
-            Room([-1,-1, 0, 0],
-            [
-                Wall(self.canvas, 0, 0, 600, 50),
-                Wall(self.canvas, 0, 0, 50, 275),
-                Wall(self.canvas, 0, 325, 50, 600),
-                Wall(self.canvas, 0, 550, 600, 600),
-                Wall(self.canvas, 550, 0, 600, 275),
-                Wall(self.canvas, 550, 325, 600, 600),
-
-                Wall(self.canvas, -50, 275, 0, 325),
-                Wall(self.canvas, 600, 275, 650, 325)
-            ],
-            [
-                Healthpack(self.canvas, 520, 300)
-            ])
-        ]
-
-        
-        self.room_list[0].enemies.append(choice([Enemy(self.canvas, self.room_list[0], 80, 150), Bat(self.canvas, self.room_list[0], 80, 150)]))
-        self.room_list[0].enemies.append(choice([Enemy(self.canvas, self.room_list[0], 370, 350), Bat(self.canvas, self.room_list[0], 370, 350)]))
-        self.room_list[0].enemies.append(choice([Enemy(self.canvas, self.room_list[0], 450, 380), Bat(self.canvas, self.room_list[0], 450, 380)]))
-
-        self.room_list[1].enemies.append(Tryclop(self.canvas, self.room_list[1], 300, 300))
-        
-
-        self.room = self.room_list[0]
-
+        self.rooms = [0 for i in range(64)]
+        self.map, self.room_index = self.generate_map(15)
+        self.generate_rooms(self.map)
+        self.room = self.rooms[self.room_index]
         self.render_room(self.room)
+        self.explore_room()
+        self.canvas_map.change_current_room(self.room_index)
         
         #img = Image.open("sprytes/player.png").resize((50,50), Image.Resampling.LANCZOS)
         #img = img.rotate(90) // img.crop((100,100,110,110)) // img.filter(ImageFilter.BoxBlur(5))
         #self.player_image = ImageTk.PhotoImage(img)
 
-        self.player = Player(self.canvas, self.room, 20, 300) #self.player_image)
+        self.player = Player(self.canvas, self.room, 300, 300) #self.player_image)
         self.health_bar = self.canvas_int.create_text(300, 50, text=f"Здоровье: {self.player.health}", font =("Arial", 14), fill="black") 
 
         self.root.bind("<KeyPress>", self.key_press)
         self.root.bind("<KeyRelease>", self.key_release)
-
+        
         self.game_on = True
         self.update_game()    
 
+    
+    
     def key_press(self, event):
         key = event.keysym.lower()
         if key in ("w","a","s","d","up","left","right","down"):
@@ -106,93 +62,6 @@ class Game:
         self.root.unbind("<KeyRelease>")
         self.game_on = False    
 
-    def check_healthpacks_collision(self):
-        healthpack = check_entities_collision(self.canvas, self.player.rect, self.room.healthpacks)
-        if healthpack:
-            self.player.health = 100
-            self.canvas_int.itemconfig(self.health_bar, text= f"Здоровье: {self.player.health}")
-            self.room.healthpacks.remove(healthpack)
-            self.canvas.delete(healthpack.rect)
-    
-    def check_bullet_collision(self):
-        player_coords = self.canvas.coords(self.player.rect)
-        for bullet in self.room.bullets:
-            bullet_coords =  self.canvas.coords(bullet.oval)
-            if (player_coords[2] > bullet_coords[0] and player_coords[0] < bullet_coords[2] and
-                player_coords[3] > bullet_coords[1] and player_coords[1] < bullet_coords[3]):
-                if self.player.health - 20 <= 0:
-                    self.game_over()
-                else:
-                    self.player.health -= 20
-                    self.canvas_int.itemconfig(self.health_bar, text= f"Здоровье: {self.player.health}")
-                self.room.bullets.remove(bullet)
-                self.canvas.delete(bullet.oval)
-                return
-            if not bullet.deflect and check_entities_collision(self.canvas, bullet.oval, self.room.attacks):
-                bullet.deflect = True
-                bullet.ang = bullet.ang + pi 
-            if bullet.deflect:
-                enemy = check_entities_collision(self.canvas, bullet.oval, self.room.enemies)
-                if enemy:
-                    self.room.bullets.remove(bullet)
-                    self.canvas.delete(bullet.oval)
-                    self.room.enemies.remove(enemy)
-                    self.canvas.delete(enemy.rect)
-
-    def check_enemy_collision(self):
-        player_coords = self.canvas.coords(self.player.rect)
-        for enemy in self.room.enemies:
-            enemy_coords =  self.canvas.coords(enemy.rect)
-            if (player_coords[2] > enemy_coords[0] and player_coords[0] < enemy_coords[2] and
-                player_coords[3] > enemy_coords[1] and player_coords[1] < enemy_coords[3]):
-                if self.player.health - 1 <= 0:
-                    self.game_over()
-                else:
-                    self.player.health -= 1
-                    self.canvas_int.itemconfig(self.health_bar, text= f"Здоровье: {self.player.health}")
-            if check_entities_collision(self.canvas, enemy.rect, self.room.attacks) and not enemy.health_cooldown:
-                enemy.health -= 50
-                enemy.health_cooldown += 1
-                if enemy.health <= 0:
-                    self.room.enemies.remove(enemy)
-                    self.canvas.delete(enemy.rect)
-        
-
-    def player_update(self):
-        player = self.player
-        for key in player.keys_pressed:
-                if key == "w":
-                    player.move_top = True
-                elif key == "s":
-                    player.move_bottom = True
-                elif key == "a":
-                    player.move_left = True
-                elif key == "d":
-                    player.move_right = True
-                elif key == "up" and player.can_attack:
-                    player.attack_dir = key
-                    player.can_attack = False
-                elif key == "down" and player.can_attack:
-                    player.attack_dir = key
-                    player.can_attack = False
-                elif key == "left" and player.can_attack:
-                    player.attack_dir = key
-                    player.can_attack = False
-                elif key == "right" and player.can_attack:
-                    player.attack_dir = key
-                    player.can_attack = False
-        player.move()
-        player.attack()
-        player.move_top = False
-        player.move_bottom = False
-        player.move_left = False
-        player.move_right = False
-        player.attack_dir = ""
-        if not player.can_attack:
-            player.attack_cooldown += 1
-            if player.attack_cooldown >= 20:
-                player.can_attack = True
-                player.attack_cooldown = 0
 
     def enemy_update(self):
         for enemy in self.room.enemies:
@@ -210,6 +79,39 @@ class Game:
                 self.room.attacks.remove(attack)
                 self.canvas.delete(attack.rect)
 
+    def generate_map(self, n):
+            map = [0 for i in range(64)]
+            i = randint(0, 63)
+            map[i] = 1
+            k = i
+            for j in range(n - 1):
+                while True:
+                    c = [-8, -1, 1, 8]
+                    if k % 8 == 0:
+                        c.remove(-1)
+                    if k % 8 == 7:
+                        c.remove(1)
+                    if k > 55:
+                        c.remove(8)
+                    if k < 8:
+                        c.remove(-8)
+                    k += choice(c)
+                    if not map[k]:
+                        break
+                map[k] = 1   
+            return(map, i)
+        
+    def generate_rooms(self, map):
+        for i in range(64):
+            if map[i]:
+                string = ''
+                for j in [-8, -1, 1, 8]:
+                    try:
+                        string += str(map[i + j])
+                    except:
+                        string += '0'
+                result = int(string, 2)
+                self.rooms[i] = choice([room for room in room_list if room.type == result])
 
     def clear_room(self, room):
         for wall in room.walls:
@@ -223,6 +125,17 @@ class Game:
             self.room.bullets.remove(bullet)
         self.canvas.create_rectangle(0, 0, 600, 600, fill="black")
 
+    def explore_room(self):
+        room_index = self.room_index
+        if not self.room.explored:
+            self.canvas_map.show_room(room_index)
+            for i in [-8, -1, 1, 8]:
+                if (room_index % 8 == 0 and i == -1) or (room_index % 8 == 7 and i == 1): continue
+                try:
+                    if self.rooms[room_index + i]:
+                        self.canvas_map.show_room(room_index + i)
+                except: pass
+
     def render_room(self, room):
         for wall in room.walls:
             wall.rect = self.canvas.create_rectangle(wall.x1, wall.y1, wall.x2, wall.y2, fill="grey", outline="grey")
@@ -231,42 +144,16 @@ class Game:
         for healthpack in room.healthpacks:
             healthpack.rect = self.canvas.create_rectangle(healthpack.x1, healthpack.y1, healthpack.x2, healthpack.y2, fill = "green", outline = "green")
 
-    def check_room_change(self):
-        player = self.player
-        player_coords = self.canvas.coords(player.rect)
-        if player_coords[1] <= 0:
-            self.clear_room(self.room)
-            self.room = self.room_list[self.room.doors[0]]
-            self.render_room(self.room)
-            player.room = self.room
-            player.rect = self.canvas.create_rectangle(290, 570, 310, 590, fill="cyan")
-        if player_coords[3] >= 599:
-            self.clear_room(self.room)
-            self.room = self.room_list[self.room.doors[1]]
-            self.render_room(self.room)
-            player.room = self.room
-            player.rect = self.canvas.create_rectangle(290, 10, 310, 590, fill="cyan")
-        if player_coords[0] <= 1:
-            self.clear_room(self.room)
-            self.room = self.room_list[self.room.doors[2]]
-            self.render_room(self.room)
-            player.room = self.room
-            player.rect = self.canvas.create_rectangle(570, 290, 590, 310, fill="cyan")
-        if player_coords[2] >= 599:
-            self.clear_room(self.room)
-            self.room = self.room_list[self.room.doors[3]]
-            self.render_room(self.room)
-            player.room = self.room
-            player.rect = self.canvas.create_rectangle(10, 290, 30, 310, fill="cyan")
-    
     def update_game(self):
         if self.game_on:
-            self.player_update()
-            self.check_healthpacks_collision()
+            self.player.update()
+            check_healthpacks_collision(self)
             self.enemy_update()
-            self.check_enemy_collision()
+            check_enemy_collision(self)
             self.bullet_update()
-            self.check_bullet_collision()
+            check_bullet_collision(self)
             self.attacks_update()
-            self.check_room_change()
+            if check_room_change(self):
+                self.canvas_map.change_current_room(self.room_index)
+                self.explore_room()
             self.root.after(16, self.update_game)

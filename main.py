@@ -1,6 +1,6 @@
-import tkinter as tk
-import Game
+from tkinter import Tk
+from Game import Game
 
-root = tk.Tk()
-game = Game.Game(root)
+root = Tk()
+game = Game(root)
 root.mainloop()

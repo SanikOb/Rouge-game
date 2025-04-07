@@ -65,6 +65,42 @@ class Player:
             else: 
                 self.room.attacks.append(Attack(self.canvas, player_coords[2], player_coords[1] - 2, player_coords[2] + 25, player_coords[3] + 2))
         
+    
+    def update(self):
+        for key in self.keys_pressed:
+                if key == "w":
+                    self.move_top = True
+                elif key == "s":
+                    self.move_bottom = True
+                elif key == "a":
+                    self.move_left = True
+                elif key == "d":
+                    self.move_right = True
+                elif key == "up" and self.can_attack:
+                    self.attack_dir = key
+                    self.can_attack = False
+                elif key == "down" and self.can_attack:
+                    self.attack_dir = key
+                    self.can_attack = False
+                elif key == "left" and self.can_attack:
+                    self.attack_dir = key
+                    self.can_attack = False
+                elif key == "right" and self.can_attack:
+                    self.attack_dir = key
+                    self.can_attack = False
+        if self.move_top or self.move_bottom or self.move_left or self.move_right:
+            self.move()
+        self.attack()
+        self.move_top = False
+        self.move_bottom = False
+        self.move_left = False
+        self.move_right = False
+        self.attack_dir = ""
+        if not self.can_attack:
+            self.attack_cooldown += 1
+            if self.attack_cooldown >= 20:
+                self.can_attack = True
+                self.attack_cooldown = 0
 
     '''
     def update_sprite_position(self):
